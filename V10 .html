@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Memory Museum - 记忆博物馆</title>
+    <style>
+        :root {
+            --space-bg: #0B0E14; 
+            --star-gold: #C69F6D; 
+            --paper-yellow: #FFF9E5; 
+            --text-light: #E0E0E0;
+            --path-color: rgba(198, 159, 109, 0.3);
+        }
+
+        body {
+            font-family: 'Noto Serif SC', 'Source Han Serif SC', serif;
+            background-color: var(--space-bg);
+            color: var(--text-light);
+            margin: 0;
+            line-height: 1.8;
+            background-image: radial-gradient(circle at 50% 50%, #161B22 0%, #0B0E14 100%);
+        }
+
+        /* 顶部标题区 */
+        .header-quote { text-align: center; padding: 60px 20px; border-bottom: 1px solid rgba(198, 159, 109, 0.1); }
+        .header-quote h1 { font-weight: 300; letter-spacing: 5px; color: var(--star-gold); margin: 0; font-size: 2.2em; }
+        .quote-en { font-style: italic; opacity: 0.8; font-size: 1em; margin-top: 15px; color: var(--star-gold); letter-spacing: 1px; font-family: 'Times New Roman', serif; }
+        .quote-cn { opacity: 0.6; font-size: 0.9em; margin-top: 10px; color: #AAA; letter-spacing: 2px; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; padding-bottom: 100px; position: relative; }
+        .view { display: none; opacity: 0; transform: translateY(10px); transition: all 0.5s ease; }
+        .view.active { display: block; opacity: 1; transform: translateY(0); }
+
+        /* 导航卡片 */
+        .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 30px; }
+        .nav-box { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(198, 159, 109, 0.2); padding: 40px 20px; text-align: center; cursor: pointer; border-radius: 8px; transition: 0.3s; }
+        .nav-box:hover { background: rgba(198, 159, 109, 0.08); border-color: var(--star-gold); }
+        .nav-box h3 { color: var(--star-gold); font-weight: 400; margin-bottom: 5px; margin-top: 0; }
+        .nav-box p { font-size: 0.8em; opacity: 0.6; margin: 0; }
+        .nav-box .en-sub { font-size: 0.7em; color: var(--star-gold); opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* 通用表单 */
+        .base-info-card { background: rgba(255,255,255,0.02); padding: 25px; border: 1px solid rgba(198,159,109,0.1); margin-bottom: 30px; border-radius: 8px; }
+        .info-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+        label { display: block; font-size: 0.8em; color: var(--star-gold); margin-bottom: 5px; text-transform: uppercase; opacity: 0.8; }
+        input, textarea { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; padding: 12px; border-radius: 6px; font-family: inherit; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--star-gold); }
+
+        /* 生命小路 */
+        .path-display-area { position: relative; width: 100%; margin-top: 40px; padding: 50px 0; }
+        .vertical-line { position: absolute; left: 50%; width: 2px; height: 100%; background: var(--path-color); transform: translateX(-50%); }
+        .life-node { position: absolute; width: 40%; padding: 15px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(198,159,109,0.2); font-size: 0.9em; z-index: 2; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .life-node:nth-child(even) { left: 5%; text-align: right; border-right: 3px solid var(--star-gold); }
+        .life-node:nth-child(odd) { left: 55%; border-left: 3px solid var(--star-gold); }
+        .node-date { color: var(--star-gold); font-weight: bold; display: block; margin-bottom: 5px; }
+
+        /* 人生拼图 */
+        .mosaic-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 30px; }
+        .sticky-note { background: var(--paper-yellow); color: #333; width: 220px; min-height: 220px; padding: 20px; transform: rotate(-1.5deg); box-shadow: 8px 8px 20px rgba(0,0,0,0.5); position: relative; }
+        .sticky-note img { width: 100%; max-height: 120px; object-fit: cover; border-radius: 2px; margin-bottom: 10px; }
+        .delete-btn { position: absolute; top: 5px; right: 5px; cursor: pointer; color: #999; font-size: 0.8em; }
+
+        /* 清单与评分 */
+        .todo-item { display: flex; align-items: center; background: rgba(255,255,255,0.04); padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 3px solid var(--star-gold); }
+        .todo-checkbox { width: 20px; height: 20px; margin-right: 15px; accent-color: var(--star-gold); }
+        .completed { opacity: 0.4; text-decoration: line-through; }
+        .star { font-size: 2em; color: #333; cursor: pointer; transition: 0.2s; }
+        .star.active { color: var(--star-gold); text-shadow: 0 0 10px var(--star-gold); }
+
+        /* 底部按钮 */
+        .storage-tools { position: fixed; bottom: 20px; right: 20px; display: flex; gap: 10px; z-index: 1000; }
+        .btn-ui { background: transparent; border: 1px solid var(--star-gold); color: var(--star-gold); padding: 10px 20px; border-radius: 25px; cursor: pointer; font-size: 0.85em; transition: 0.3s; }
+        .btn-ui:hover { background: var(--star-gold); color: white; }
+    </style>
+</head>
+<body onload="init()">
+
+<div class="storage-tools">
+    <button class="btn-ui" onclick="exportData()">EXPORT 导出</button>
+    <label class="btn-ui">IMPORT 导入 <input type="file" id="import-file" hidden onchange="importData(this)"></label>
+</div>
+
+<div class="header-quote">
+    <h1>Memory Museum</h1>
+    <div class="quote-en">"Death is not the end of life, forgetting is the end of life."</div>
+    <div class="quote-cn">死亡不是终点，遗忘才是。</div>
+</div>
+
+<div class="container">
+    <div id="view-home" class="view active">
+        <div class="base-info-card">
+            <h2 style="color: var(--star-gold); font-weight: 300; margin-top:0; font-size: 1.2em; letter-spacing: 2px;">ARCHIVES 馆藏档案</h2>
+            <div class="info-row">
+                <div><label>Name 姓名</label><input type="text" id="p-name" placeholder="TA的名字" oninput="saveData()"></div>
+                <div><label>Relationship 关系</label><input type="text" id="p-rel" placeholder="TA是你的..." oninput="saveData()"></div>
+                <div><label>Life Journey 生命历程</label><input type="text" id="p-years" placeholder="X年X月X日 - X年X月X日" oninput="saveData()"></div>
+            </div>
+        </div>
+        <div class="module-grid">
+            <div class="nav-box" onclick="showView('sensory')"><div class="en-sub">Sensory</div><h3>👃 感官回响</h3><p>面貌、声音与味道</p></div>
+            <div class="nav-box" onclick="showView('path')"><div class="en-sub">Life Path</div><h3>🛤️ 生命小路</h3><p>时光轴上的轨迹</p></div>
+            <div class="nav-box" onclick="showView('mosaic')"><div class="en-sub">Mosaic</div><h3>🧩 人生拼图</h3><p>回忆便利贴墙</p></div>
+            <div class="nav-box" onclick="showView('todo')"><div class="en-sub">Unfinished</div><h3>🕯️ 未竟之事</h3><p>愿望清单</p></div>
+            <div class="nav-box" onclick="showView('eval')"><div class="en-sub">Reflections</div><h3>🌟 核心回顾</h3><p>生命感悟</p></div>
+        </div>
+    </div>
+
+    <div id="view-sensory" class="view">
+        <button class="btn-ui" onclick="showView('home')">BACK 返回</button>
+        <div class="module-grid">
+            <div class="nav-box"><h4>Features 面貌</h4><textarea id="s-face" oninput="saveData()" placeholder="那些特征..."></textarea></div>
+            <div class="nav-box"><h4>Scent 味道</h4><textarea id="s-smell" oninput="saveData()" placeholder="熟悉的味道..."></textarea></div>
+            <div class="nav-box"><h4>Voice 声音</h4><textarea id="s-voice" oninput="saveData()" placeholder="TA说话的语气..."></textarea></div>
+            <div class="nav-box"><h4>Habits 习惯</h4><textarea id="s-habit" oninput="saveData()" placeholder="小习惯..."></textarea></div>
+        </div>
+    </div>
+
+    <div id="view-path" class="view">
+        <button class="btn-ui" onclick="showView('home')">BACK 返回</button>
+        <div class="base-info-card" style="margin-top:20px">
+            <h3 style="font-size: 1em; color:var(--star-gold)">ADD NODE 添加节点</h3>
+            <div class="info-row" style="align-items: flex-end;">
+                <div><label>Date 日期</label><input type="date" id="path-date"></div>
+                <div><label>Event 事件</label><input type="text" id="path-desc" placeholder="发生了什么？"></div>
+                <button class="btn-ui" onclick="addPath()">RECORD 记录</button>
+            </div>
+        </div>
+        <div class="path-display-area" id="path-list"><div class="vertical-line"></div></div>
+    </div>
+
+    <div id="view-mosaic" class="view">
+        <button class="btn-ui" onclick="showView('home')">BACK 返回</button>
+        <div class="base-info-card" style="margin-top:20px">
+            <textarea id="m-text" rows="3" placeholder="写下那些珍贵的瞬间..."></textarea>
+            <div style="margin-top:10px">
+                <label style="color:var(--star-gold); cursor:pointer; font-size: 0.8em;">📷 IMAGE 图片 <input type="file" id="m-img" hidden accept="image/*"></label>
+                <button class="btn-ui" onclick="addMosaic()" style="float:right">POST 贴上墙</button>
+            </div>
+        </div>
+        <div class="mosaic-container" id="mosaic-wall"></div>
+    </div>
+
+    <div id="view-todo" class="view">
+        <button class="btn-ui" onclick="showView('home')">BACK 返回</button>
+        <div class="base-info-card" style="margin-top:20px">
+            <div class="info-row">
+                <input type="text" id="todo-input" placeholder="输入一件未竟之事...">
+                <button class="btn-ui" onclick="addTodo()">ADD 添加</button>
+            </div>
+        </div>
+        <div id="todo-list"></div>
+    </div>
+
+    <div id="view-eval" class="view">
+        <button class="btn-ui" onclick="showView('home')">BACK 返回</button>
+        <div class="base-info-card" style="margin-top:20px">
+            <h4 style="font-size: 0.9em; color:var(--star-gold)">RICHNESS 生命丰富度</h4>
+            <div class="star-row" data-key="star1" onclick="rate(event, 'star1')"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+            <textarea id="eval-1" oninput="saveData()" placeholder="评分理由..."></textarea>
+            
+            <h4 style="margin-top:30px; font-size: 0.9em; color:var(--star-gold)">WARMTH 性格温度</h4>
+            <div class="star-row" data-key="star2" onclick="rate(event, 'star2')"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+            <textarea id="eval-2" oninput="saveData()" placeholder="性格特质..."></textarea>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 逻辑部分保持最新存档版
+    let museumData = { base: {}, sensory: {}, path: [], mosaics: [], todos: [], stars: {star1:0, star2:0}, evals: {} };
+
+    function showView(id) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-' + id).classList.add('active');
+        window.scrollTo(0, 0);
+    }
+
+    function saveData() {
+        museumData.base = { name: document.getElementById('p-name').value, rel: document.getElementById('p-rel').value, years: document.getElementById('p-years').value };
+        museumData.sensory = { face: document.getElementById('s-face').value, smell: document.getElementById('s-smell').value, voice: document.getElementById('s-voice').value, habit: document.getElementById('s-habit').value };
+        museumData.evals = { e1: document.getElementById('eval-1').value, e2: document.getElementById('eval-2').value };
+        localStorage.setItem('museum_dual_v1', JSON.stringify(museumData));
+    }
+
+    function init() {
+        const saved = localStorage.getItem('museum_dual_v1');
+        if(saved) {
+            museumData = JSON.parse(saved);
+            document.getElementById('p-name').value = museumData.base.name || '';
+            document.getElementById('p-rel').value = museumData.base.rel || '';
+            document.getElementById('p-years').value = museumData.base.years || '';
+            document.getElementById('s-face').value = museumData.sensory.face || '';
+            document.getElementById('s-smell').value = museumData.sensory.smell || '';
+            document.getElementById('s-voice').value = museumData.sensory.voice || '';
+            document.getElementById('s-habit').value = museumData.sensory.habit || '';
+            document.getElementById('eval-1').value = museumData.evals.e1 || '';
+            document.getElementById('eval-2').value = museumData.evals.e2 || '';
+            renderPath(); renderMosaic(); renderTodos(); updateStars();
+        }
+    }
+
+    function addPath() {
+        const date = document.getElementById('path-date').value;
+        const desc = document.getElementById('path-desc').value;
+        if(!date || !desc) return;
+        museumData.path.push({ date, desc });
+        museumData.path.sort((a,b) => new Date(a.date) - new Date(b.date));
+        saveData(); renderPath();
+        document.getElementById('path-desc').value = "";
+    }
+
+    function renderPath() {
+        const list = document.getElementById('path-list');
+        list.innerHTML = '<div class="vertical-line"></div>';
+        museumData.path.forEach((n, i) => {
+            const div = document.createElement('div');
+            div.className = 'life-node';
+            div.style.top = (i * 200 + 50) + 'px';
+            div.innerHTML = `<span class="node-date">${n.date}</span><p>${n.desc}</p><span class="delete-btn" onclick="deleteItem('path', ${i})">×</span>`;
+            list.appendChild(div);
+        });
+        list.style.minHeight = (museumData.path.length * 200 + 300) + 'px';
+    }
+
+    async function addMosaic() {
+        const text = document.getElementById('m-text').value;
+        const file = document.getElementById('m-img').files[0];
+        if(!text && !file) return;
+        let img = null;
+        if(file) {
+            const reader = new FileReader();
+            img = await new Promise(r => { reader.onload=()=>r(reader.result); reader.readAsDataURL(file); });
+        }
+        museumData.mosaics.push({ text, img });
+        saveData(); renderMosaic();
+        document.getElementById('m-text').value = ""; document.getElementById('m-img').value = "";
+    }
+
+    function renderMosaic() {
+        const wall = document.getElementById('mosaic-wall');
+        wall.innerHTML = '';
+        museumData.mosaics.forEach((m, i) => {
+            const div = document.createElement('div');
+            div.className = 'sticky-note';
+            div.innerHTML = `${m.img ? `<img src="${m.img}">`:''}<p>${m.text}</p><span class="delete-btn" onclick="deleteItem('mosaics', ${i})">REMOVE</span>`;
+            wall.appendChild(div);
+        });
+    }
+
+    function addTodo() {
+        const text = document.getElementById('todo-input').value;
+        if(!text) return;
+        museumData.todos.push({ text, done: false });
+        saveData(); renderTodos();
+        document.getElementById('todo-input').value = "";
+    }
+
+    function renderTodos() {
+        const list = document.getElementById('todo-list');
+        list.innerHTML = '';
+        museumData.todos.forEach((t, i) => {
+            const div = document.createElement('div');
+            div.className = `todo-item ${t.done?'completed':''}`;
+            div.innerHTML = `<input type="checkbox" class="todo-checkbox" ${t.done?'checked':''} onchange="toggleTodo(${i})"><span>${t.text}</span>`;
+            list.appendChild(div);
+        });
+    }
+
+    function toggleTodo(i) { museumData.todos[i].done = !museumData.todos[i].done; saveData(); renderTodos(); }
+    
+    function rate(e, key) {
+        if(e.target.classList.contains('star')) {
+            const stars = Array.from(e.currentTarget.children);
+            museumData.stars[key] = stars.indexOf(e.target) + 1;
+            saveData(); updateStars();
+        }
+    }
+
+    function updateStars() {
+        ['star1', 'star2'].forEach(key => {
+            const row = document.querySelector(`[data-key="${key}"]`);
+            if(row) Array.from(row.children).forEach((s, i) => s.classList.toggle('active', i < museumData.stars[key]));
+        });
+    }
+
+    function deleteItem(type, i) { museumData[type].splice(i, 1); saveData(); type==='path'?renderPath():renderMosaic(); }
+
+    function exportData() {
+        const blob = new Blob([JSON.stringify(museumData)], {type: "application/json"});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "museum_backup.json"; a.click();
+    }
+
+    function importData(input) {
+        const reader = new FileReader();
+        reader.onload = e => { museumData = JSON.parse(e.target.result); saveData(); location.reload(); };
+        reader.readAsText(input.files[0]);
+    }
+</script>
+</body>
+</html>
