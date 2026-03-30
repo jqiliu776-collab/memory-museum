@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Memory Museum - 记忆博物馆</title>
+    <style>
+        :root {
+            /* 默认：白天模式 */
+            --bg-color: #F8F5F0;
+            --card-bg: #FFFFFF;
+            --border-color: #D3C4B1;
+            --star-gold: #8E6D45;
+            --star-empty: #DCDCDC;
+            --text-main: #3E3A36;
+            --text-sub: #7D756D;
+            --input-bg: #FFFFFF;
+            --path-line: #D3C4B1;
+            --header-gradient: radial-gradient(circle at 50% 50%, #FDFBF7 0%, #F8F5F0 100%);
+        }
+
+        [data-theme="night"] {
+            /* 切换：暗色模式 */
+            --bg-color: #0B0E14;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(198, 159, 109, 0.2);
+            --star-gold: #C69F6D;
+            --star-empty: #333;
+            --text-main: #E0E0E0;
+            --text-sub: #AAA;
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --path-line: rgba(198, 159, 109, 0.3);
+            --header-gradient: radial-gradient(circle at 50% 50%, #161B22 0%, #0B0E14 100%);
+        }
+
+        body { font-family: 'Noto Serif SC', serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; transition: all 0.5s ease; background-image: var(--header-gradient); }
+        .header-quote { text-align: center; padding: 60px 20px; border-bottom: 1px solid var(--border-color); }
+        .header-quote h1 { font-weight: 300; letter-spacing: 5px; color: var(--star-gold); margin: 0; }
+        .quote-en { font-style: italic; color: var(--star-gold); margin-top: 15px; font-size: 1.1em; }
+        .quote-cn { color: var(--text-sub); margin-top: 10px; font-size: 0.9em; letter-spacing: 2px; opacity: 0.8; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; padding-bottom: 100px; }
+        .view { display: none; opacity: 0; transform: translateY(10px); transition: all 0.4s ease; }
+        .view.active { display: block; opacity: 1; transform: translateY(0); }
+
+        /* 导航卡片 */
+        .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 30px; }
+        .nav-box { background: var(--card-bg); border: 1px solid var(--border-color); padding: 30px 15px; text-align: center; cursor: pointer; border-radius: 8px; transition: 0.3s; }
+        .nav-box:hover { background: rgba(198, 159, 109, 0.1); transform: translateY(-3px); }
+
+        /* 表单控件 */
+        .base-info-card { background: var(--card-bg); padding: 25px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 25px; }
+        label { display: block; font-size: 0.8em; color: var(--star-gold); margin-bottom: 5px; }
+        input, textarea { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; box-sizing: border-box; outline: none; }
+        
+        /* --- 修正后的 TODO LIST 样式 --- */
+        .todo-item { 
+            display: flex; 
+            align-items: flex-start; 
+            padding: 15px; 
+            background: var(--card-bg); 
+            margin-bottom: 12px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-color); 
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .todo-item:hover { border-color: var(--star-gold); background: rgba(198, 159, 109, 0.03); }
+        .todo-checkbox { 
+            width: 20px; 
+            height: 20px; 
+            margin-right: 15px; 
+            margin-top: 4px; 
+            cursor: pointer;
+            accent-color: var(--star-gold);
+            flex-shrink: 0; /* 防止复选框被挤压 */
+        }
+        .todo-text { 
+            flex-grow: 1; 
+            font-size: 1.05em; 
+            word-break: break-all; /* 防止长文本撑破布局 */
+            line-height: 1.6;
+        }
+        .completed .todo-text { 
+            opacity: 0.4; 
+            text-decoration: line-through; 
+        }
+        .todo-delete {
+            color: var(--text-sub);
+            font-size: 0.8em;
+            margin-left: 10px;
+            opacity: 0.3;
+            transition: 0.3s;
+        }
+        .todo-delete:hover { opacity: 1; color: #ff6b6b; }
+
+        /* 星级评分 */
+        .eval-item { margin-bottom: 30px; }
+        .eval-title-row { display: flex; align-items: center; gap: 15px; margin-bottom: 5px; }
+        .star-rating { display: flex; gap: 5px; cursor: pointer; }
+        .star-rating span { font-size: 1.5em; color: var(--star-empty); }
+        .star-rating span.active { color: var(--star-gold); }
+
+        /* 底部工具 */
+        .storage-tools { position: fixed; bottom: 20px; right: 20px; display: flex; gap: 10px; z-index: 1000; }
+        .btn-ui { background: var(--card-bg); border: 1px solid var(--star-gold); color: var(--star-gold); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.85em; transition: 0.3s; }
+        .btn-ui:hover { background: var(--star-gold); color: white; }
+
+        /* 布局 */
+        .path-display-area { position: relative; margin-top: 40px; }
+        .vertical-line { position: absolute; left: 50%; width: 1px; height: 100%; background: var(--path-line); }
+        .life-node { position: absolute; width: 42%; background: var(--card-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; }
+        .life-node:nth-child(even) { left: 2%; text-align: right; }
+        .life-node:nth-child(odd) { left: 56%; }
+        .sticky-note { width: 200px; min-height: 200px; padding: 20px; transform: rotate(-1.5deg); box-shadow: 5px 5px 15px rgba(0,0,0,0.1); position: relative; color: #333; background: #FFF9E5; }
+    </style>
+</head>
+<body onload="init()">
+
+<div class="storage-tools">
+    <button class="btn-ui" onclick="toggleTheme()" id="theme-btn">☀️</button>
+    <button class="btn-ui" onclick="exportData()">导出备份</button>
+    <label class="btn-ui">导入备份 <input type="file" id="import-file" hidden onchange="importData(this)"></label>
+</div>
+
+<div class="header-quote">
+    <h1>Memory Museum</h1>
+    <div class="quote-en">"Death is not the end of life, forgetting is the end of life."</div>
+    <div class="quote-cn">死亡不是终点，遗忘才是。</div>
+</div>
+
+<div class="container">
+    <div id="view-home" class="view active">
+        <div class="base-info-card">
+            <h2 style="color: var(--star-gold); font-weight: 300; margin-top:0; font-size: 1.1em;">ARCHIVES 馆藏基本档案</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div><label>Name 姓名</label><input type="text" id="p-name" placeholder="逝者的姓名" oninput="saveData()"></div>
+                <div><label>Relationship 关系</label><input type="text" id="p-rel" placeholder="TA 是你的... (如：祖父)" oninput="saveData()"></div>
+                <div><label>Life Journey 生命历程</label><input type="text" id="p-years" placeholder="出生日期 - 逝世日期" oninput="saveData()"></div>
+            </div>
+        </div>
+        <div class="module-grid">
+            <div class="nav-box" onclick="showView('sensory')"><h3>👃 感官回响</h3><p>全方位的记忆捕捉</p></div>
+            <div class="nav-box" onclick="showView('path')"><h3>🛤️ 生命小路</h3><p>时光轴上的足迹</p></div>
+            <div class="nav-box" onclick="showView('mosaic')"><h3>🧩 人生拼图</h3><p>碎片化的珍贵瞬间</p></div>
+            <div class="nav-box" onclick="showView('todo')"><h3>🕯️ 未竟之事</h3><p>代 TA 完成的心愿</p></div>
+            <div class="nav-box" onclick="showView('eval')"><h3>🌟 综合评价</h3><p>多维度的生命感悟</p></div>
+        </div>
+    </div>
+
+    <div id="view-todo" class="view">
+        <button class="btn-ui" onclick="showView('home')">← 返回</button>
+        <div style="background:rgba(198,159,109,0.1); padding:15px; border-radius:8px; margin:20px 0; font-size:0.9em; color:var(--star-gold); line-height:1.5;">
+            💡 <strong>温馨提醒：</strong> 那些 TA 未了的心愿，你可以代为圆满。完成后勾选它，是对 TA 最好的致敬。
+        </div>
+        <div class="base-info-card">
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="todo-input" placeholder="输入一件未竟之事..." style="margin-bottom:0;">
+                <button class="btn-ui" onclick="addTodo()" style="flex-shrink:0;">添加</button>
+            </div>
+        </div>
+        <div id="todo-list">
+            </div>
+    </div>
+
+    <div id="view-sensory" class="view">
+        <button class="btn-ui" onclick="showView('home')">← 返回</button>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top:20px">
+            <div class="base-info-card"><h4>面貌</h4><textarea id="s-face" oninput="saveData()" placeholder="那些独特的面部特征..."></textarea></div>
+            <div class="base-info-card"><h4>声音</h4><textarea id="s-voice" oninput="saveData()" placeholder="说话的语气、笑声..."></textarea></div>
+            <div class="base-info-card"><h4>味道</h4><textarea id="s-taste" oninput="saveData()" placeholder="TA 喜欢的菜肴或爱喝的茶..."></textarea></div>
+            <div class="base-info-card"><h4>气味</h4><textarea id="s-smell" oninput="saveData()" placeholder="衣服或 TA 身上熟悉的味道..."></textarea></div>
+            <div class="base-info-card"><h4>触觉</h4><textarea id="s-touch" oninput="saveData()" placeholder="拥抱的温度、大手的厚度..."></textarea></div>
+            <div class="base-info-card"><h4>习惯</h4><textarea id="s-habit" oninput="saveData()" placeholder="独特的小动作或生活习惯..."></textarea></div>
+        </div>
+    </div>
+
+    <div id="view-path" class="view">
+        <button class="btn-ui" onclick="showView('home')">← 返回</button>
+        <div class="base-info-card" style="margin-top:20px">
+            <div style="display:flex; gap:10px; align-items: flex-end;">
+                <div style="flex:1"><label>日期</label><input type="date" id="path-date"></div>
+                <div style="flex:2"><label>事件</label><input type="text" id="path-desc" placeholder="发生了什么？"></div>
+                <button class="btn-ui" onclick="addPath()">记录</button>
+            </div>
+        </div>
+        <div class="path-display-area" id="path-list"><div class="vertical-line"></div></div>
+    </div>
+
+    <div id="view-mosaic" class="view">
+        <button class="btn-ui" onclick="showView('home')">← 返回</button>
+        <div class="base-info-card" style="margin-top:20px">
+            <textarea id="m-text" rows="3" placeholder="写下那些瞬间..."></textarea>
+            <label class="btn-ui">📷 图片 <input type="file" id="m-img" hidden accept="image/*"></label>
+            <button class="btn-ui" onclick="addMosaic()" style="float:right">贴上墙</button>
+        </div>
+        <div id="mosaic-wall" style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center;"></div>
+    </div>
+
+    <div id="view-eval" class="view">
+        <button class="btn-ui" onclick="showView('home')">← 返回</button>
+        <div class="base-info-card" style="margin-top:20px">
+            <div class="eval-item">
+                <div class="eval-title-row"><h4>1. 人生丰富度</h4><div class="star-rating" data-key="star1"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div></div>
+                <p style="font-size:0.85em; opacity:0.6;">TA 的一生是否充满故事与经历。</p>
+                <textarea id="eval-1" oninput="saveData()" placeholder="感悟评价..."></textarea>
+            </div>
+            <div class="eval-item">
+                <div class="eval-title-row"><h4>2. 生命意义感</h4><div class="star-rating" data-key="star2"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div></div>
+                <p style="font-size:0.85em; opacity:0.6;">TA 所坚持的价值与生命意义。</p>
+                <textarea id="eval-2" oninput="saveData()" placeholder="感悟评价..."></textarea>
+            </div>
+            <div class="eval-item">
+                <div class="eval-title-row"><h4>3. 情感连结度</h4><div class="star-rating" data-key="star3"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div></div>
+                <p style="font-size:0.85em; opacity:0.6;">TA 创造的温暖与人际连结。</p>
+                <textarea id="eval-3" oninput="saveData()" placeholder="感悟评价..."></textarea>
+            </div>
+            <div class="eval-item">
+                <div class="eval-title-row"><h4>4. 温暖影响力</h4><div class="star-rating" data-key="star4"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div></div>
+                <p style="font-size:0.85em; opacity:0.6;">TA 在他人心中留下的温暖印象。</p>
+                <textarea id="eval-4" oninput="saveData()" placeholder="感悟评价..."></textarea>
+            </div>
+            <div class="eval-item">
+                <div class="eval-title-row"><h4>5. 生命贡献度</h4><div class="star-rating" data-key="star5"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div></div>
+                <p style="font-size:0.85em; opacity:0.6;">TA 为身边世界带来的点滴善意。</p>
+                <textarea id="eval-5" oninput="saveData()" placeholder="感悟评价..."></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let museumData = {
+        theme: 'light', base: {}, sensory: {}, path: [], mosaics: [], todos: [],
+        stars: {star1:0, star2:0, star3:0, star4:0, star5:0}, evals: {}
+    };
+
+    function showView(id) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-' + id).classList.add('active');
+    }
+
+    function toggleTheme() {
+        museumData.theme = museumData.theme === 'light' ? 'night' : 'light';
+        setTheme(museumData.theme);
+        saveData();
+    }
+
+    function setTheme(t) {
+        if(t === 'light') { document.documentElement.removeAttribute('data-theme'); document.getElementById('theme-btn').innerText = '☀️'; }
+        else { document.documentElement.setAttribute('data-theme', 'night'); document.getElementById('theme-btn').innerText = '🌙'; }
+    }
+
+    // --- TODO 核心逻辑 ---
+    function addTodo() {
+        const val = document.getElementById('todo-input').value;
+        if(!val) return;
+        museumData.todos.push({ text: val, done: false });
+        document.getElementById('todo-input').value = "";
+        saveData();
+        renderTodos();
+    }
+
+    function renderTodos() {
+        const list = document.getElementById('todo-list');
+        list.innerHTML = '';
+        museumData.todos.forEach((t, i) => {
+            const div = document.createElement('div');
+            div.className = `todo-item ${t.done ? 'completed' : ''}`;
+            div.onclick = (e) => {
+                if(e.target.className !== 'todo-delete') toggleTodo(i);
+            };
+            div.innerHTML = `
+                <input type="checkbox" class="todo-checkbox" ${t.done ? 'checked' : ''}>
+                <div class="todo-text">${t.text}</div>
+                <div class="todo-delete" onclick="deleteTodo(event, ${i})">删除</div>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function toggleTodo(i) {
+        museumData.todos[i].done = !museumData.todos[i].done;
+        saveData();
+        renderTodos();
+    }
+
+    function deleteTodo(e, i) {
+        e.stopPropagation();
+        museumData.todos.splice(i, 1);
+        saveData();
+        renderTodos();
+    }
+
+    // --- 其他逻辑保持一致 ---
+    function saveData() {
+        museumData.base = { name: document.getElementById('p-name').value, rel: document.getElementById('p-rel').value, years: document.getElementById('p-years').value };
+        museumData.sensory = { face: document.getElementById('s-face').value, voice: document.getElementById('s-voice').value, taste: document.getElementById('s-taste').value, smell: document.getElementById('s-smell').value, touch: document.getElementById('s-touch').value, habit: document.getElementById('s-habit').value };
+        museumData.evals = { e1: document.getElementById('eval-1').value, e2: document.getElementById('eval-2').value, e3: document.getElementById('eval-3').value, e4: document.getElementById('eval-4').value, e5: document.getElementById('eval-5').value };
+        localStorage.setItem('museum_final_v14', JSON.stringify(museumData));
+    }
+
+    function init() {
+        const saved = localStorage.getItem('museum_final_v14');
+        if(saved) {
+            museumData = JSON.parse(saved);
+            setTheme(museumData.theme);
+            document.getElementById('p-name').value = museumData.base.name || '';
+            document.getElementById('p-rel').value = museumData.base.rel || '';
+            document.getElementById('p-years').value = museumData.base.years || '';
+            document.getElementById('s-face').value = museumData.sensory.face || '';
+            document.getElementById('s-voice').value = museumData.sensory.voice || '';
+            document.getElementById('s-taste').value = museumData.sensory.taste || '';
+            document.getElementById('s-smell').value = museumData.sensory.smell || '';
+            document.getElementById('s-touch').value = museumData.sensory.touch || '';
+            document.getElementById('s-habit').value = museumData.sensory.habit || '';
+            for(let i=1; i<=5; i++) document.getElementById('eval-'+i).value = museumData.evals['e'+i] || '';
+            renderTodos(); renderPath(); renderMosaic(); updateStars();
+        }
+    }
+
+    // 星级评分点击
+    document.querySelectorAll('.star-rating').forEach(container => {
+        container.onclick = e => {
+            if(e.target.tagName === 'SPAN') {
+                const stars = Array.from(container.children);
+                const score = stars.indexOf(e.target) + 1;
+                museumData.stars[container.dataset.key] = score;
+                saveData(); updateStars();
+            }
+        }
+    });
+
+    function updateStars() {
+        document.querySelectorAll('.star-rating').forEach(c => {
+            const score = museumData.stars[c.dataset.key];
+            Array.from(c.children).forEach((s, i) => s.classList.toggle('active', i < score));
+        });
+    }
+
+    // 生命小路、拼图、导入导出等逻辑保持原样
+    function addPath() { 
+        const date = document.getElementById('path-date').value;
+        const desc = document.getElementById('path-desc').value;
+        if(date && desc) { museumData.path.push({date, desc}); museumData.path.sort((a,b)=>new Date(a.date)-new Date(b.date)); saveData(); renderPath(); }
+    }
+    function renderPath() {
+        const list = document.getElementById('path-list'); list.innerHTML = '<div class="vertical-line"></div>';
+        museumData.path.forEach((n,i) => {
+            const div = document.createElement('div'); div.className='life-node'; div.style.top=(i*180+50)+'px';
+            div.innerHTML=`<b>${n.date}</b><p>${n.desc}</p><span onclick="deleteItem('path',${i})">×</span>`;
+            list.appendChild(div);
+        });
+        list.style.minHeight = (museumData.path.length*180+200)+'px';
+    }
+
+    async function addMosaic() {
+        const text = document.getElementById('m-text').value;
+        const file = document.getElementById('m-img').files[0];
+        let img = null;
+        if(file) { img = await new Promise(r=>{const f=new FileReader(); f.onload=()=>r(f.result); f.readAsDataURL(file);}); }
+        if(text || img) { museumData.mosaics.push({text, img}); saveData(); renderMosaic(); document.getElementById('m-text').value=""; }
+    }
+    function renderMosaic() {
+        const wall = document.getElementById('mosaic-wall'); wall.innerHTML='';
+        museumData.mosaics.forEach((m,i)=>{
+            const d = document.createElement('div'); d.className='sticky-note';
+            d.innerHTML=`${m.img?`<img src="${m.img}">`:''}<p>${m.text}</p><span style="position:absolute;bottom:5px;right:5px;cursor:pointer;opacity:0.3" onclick="deleteItem('mosaics',${i})">删除</span>`;
+            wall.appendChild(d);
+        });
+    }
+
+    function deleteItem(type, i) { museumData[type].splice(i, 1); saveData(); type==='path'?renderPath():renderMosaic(); }
+    function exportData() { const b=new Blob([JSON.stringify(museumData)],{type:"application/json"}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download="museum_archive.json"; a.click(); }
+    function importData(input) { const r=new FileReader(); r.onload=e=>{museumData=JSON.parse(e.target.result); saveData(); location.reload();}; r.readAsText(input.files[0]); }
+</script>
+</body>
+</html>
